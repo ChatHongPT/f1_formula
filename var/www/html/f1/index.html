@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>F1 Mini Live · Simulation + Dashboard</title>
+<meta name="color-scheme" content="light dark">
+<style>
+  :root{--ink:#111;--muted:#777;--card:rgba(255,255,255,.08)}
+  @media (prefers-color-scheme:dark){:root{--ink:#eee}}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;background:#0b0b0d;color:var(--ink)}
+  .layout{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;min-height:100dvh;padding:18px}
+  .card{background:var(--card);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:16px}
+  .title{font-weight:800;margin:0 0 8px 0}
+  .muted{color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .podium{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .podium .p{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;background:rgba(255,255,255,.06)}
+  .podium img{width:52px;height:52px;border-radius:8px;object-fit:cover}
+  .badge{display:inline-block;padding:4px 10px;border:1px solid #333;border-radius:999px;font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,.12);text-align:left}
+  select{padding:6px 10px;border-radius:8px;background:transparent;border:1px solid #555;color:inherit}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+  .legend .dot{width:12px;height:12px;border-radius:50%}
+  .sim-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .pill{display:inline-flex;gap:6px;align-items:center;border:1px solid #333;border-radius:999px;padding:6px 10px}
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- Left: Simulation -->
+  <section class="card">
+    <div class="sim-header">
+      <h2 class="title">🏎️ 가상 레이스(애니메이션)</h2>
+      <div class="pill"><span id="sessionLabel" class="muted">세션 로딩중…</span></div>
+    </div>
+    <!-- SVG Track: 오벌 + 코너 2개 느낌 -->
+    <svg id="track" viewBox="0 0 800 500" width="100%" height="460" style="background:radial-gradient(900px 380px at -10% -10%, #1c1c20, transparent 60%), radial-gradient(700px 380px at 110% 110%, #141418, transparent 60%)">
+      <!-- Track path -->
+      <defs>
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/>
+        </filter>
+      </defs>
+      <path id="circuit" d="M 150 250
+                            C 150 120, 300 80, 400 80
+                            C 500 80, 650 120, 650 250
+                            C 650 380, 500 420, 400 420
+                            C 300 420, 150 380, 150 250 Z"
+            fill="none" stroke="#555" stroke-width="16" filter="url(#shadow)" />
+      <!-- Cars will be appended here -->
+      <g id="cars"></g>
+    </svg>
+    <div class="legend" id="legend"></div>
+    <div class="muted">좌측 트랙에서 팀 컬러의 원이 자동차입니다. 속도는 난수 + 미니 부스트로 약간씩 달라져 추월 연출이 납니다.</div>
+  </section>
+
+  <!-- Right: Dashboard -->
+  <section class="card">
+    <h2 class="title">📊 대시보드</h2>
+    <div class="podium" id="podium"></div>
+
+    <div class="grid">
+      <div class="card">
+        <h3 class="title">🏁 팀 순위(세션 포인트)</h3>
+        <table id="teamTable"><thead><tr><th>순위</th><th>팀</th><th>점수</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h3 class="title">🛞 피트스톱(최신순)</h3>
+        <table id="pitTable"><thead><tr><th>Lap</th><th>#</th><th>Driver</th><th>Duration(s)</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 class="title">⏱️ 드라이버 랩타임</h3>
+          <select id="driverSelect"></select>
+        </div>
+        <table id="lapTable"><thead><tr><th>Lap</th><th>Time(s)</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(async function(){
+  // 1) 데이터 로드(동일 도메인의 정적 파일)
+  const base = '/f1/data';
+  const [meta, drivers, results, pits, laps, teamStandings, podium] = await Promise.all([
+    fetch(`${base}/meta.json`).then(r=>r.json()).catch(()=>({})),
+    fetch(`${base}/drivers.json`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${base}/results.json`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${base}/pits.json`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${base}/laps.json`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${base}/team_standings.json`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${base}/podium.json`).then(r=>r.json()).catch(()=>[]),
+  ]);
+
+  // 헤더 라벨
+  const label = [meta.location, meta.session_name, meta.date_start].filter(Boolean).join(' · ');
+  document.getElementById('sessionLabel').textContent = label || 'Latest Session';
+
+  // small helpers
+  const dmap = new Map(drivers.map(d => [String(d.driver_number), d]));
+  const by = (key) => (a,b) => (a[key]??0) - (b[key]??0);
+  const byDesc = (key) => (a,b) => (b[key]??0) - (a[key]??0);
+
+  // 2) 포디움 카드
+  const pod = document.getElementById('podium');
+  (podium || []).sort(by('position')).forEach(p=>{
+    const d = dmap.get(String(p.driver_number)) || {};
+    const head = (p.headshot_url || d.headshot_url) || 'https://via.placeholder.com/120x120.png?text=No+Photo';
+    const color = '#'+(d.team_colour || p.team_colour || '777777');
+    pod.insertAdjacentHTML('beforeend', `
+      <div class="p" style="border-left:4px solid ${color}">
+        <img src="${head}" alt="${p.full_name}">
+        <div>
+          <div><strong>${p.position}위</strong> · <span class="badge">#${p.driver_number}</span></div>
+          <div>${p.full_name}</div>
+          <div class="muted">${p.team_name || d.team_name || ''}</div>
+        </div>
+      </div>
+    `);
+  });
+
+  // 3) 팀 순위 테이블
+  const teamTbody = document.querySelector('#teamTable tbody');
+  (teamStandings || []).forEach((t, i)=>{
+    teamTbody.insertAdjacentHTML('beforeend', `<tr><td>${i+1}</td><td>${t.team_name}</td><td>${t.points}</td></tr>`);
+  });
+
+  // 4) 피트스톱(최신순 상위 12개 표시)
+  const pitTbody = document.querySelector('#pitTable tbody');
+  pits.sort(byDesc('lap_number')).slice(0, 12).forEach(p=>{
+    const dn = String(p.driver_number);
+    const name = (dmap.get(dn)?.full_name) || `Driver ${dn}`;
+    pitTbody.insertAdjacentHTML('beforeend', `<tr>
+      <td>${p.lap_number ?? ''}</td>
+      <td>#${dn}</td>
+      <td>${name}</td>
+      <td>${p.pit_duration ?? ''}</td>
+    </tr>`);
+  });
+
+  // 5) 드라이버 선택 + 랩타임 테이블
+  const driverSelect = document.getElementById('driverSelect');
+  drivers.forEach(d=>{
+    const opt = document.createElement('option');
+    opt.value = d.driver_number;
+    opt.textContent = `${d.full_name} (#${d.driver_number})`;
+    driverSelect.appendChild(opt);
+  });
+  function renderLaps(dn){
+    const body = document.querySelector('#lapTable tbody');
+    body.innerHTML = '';
+    const rows = laps.filter(l=>String(l.driver_number)===String(dn))
+                     .sort(by('lap_number'))
+                     .slice(0, 25); // 너무 길면 상위 25랩만
+    rows.forEach(r=>{
+      let sec = r.lap_duration;
+      // lap_duration이 s 단위 혹은 ISO일 수 있음 → 숫자만 보이면 그대로 표시
+      body.insertAdjacentHTML('beforeend', `<tr><td>${r.lap_number}</td><td>${sec ?? ''}</td></tr>`);
+    });
+  }
+  if (drivers[0]) renderLaps(drivers[0].driver_number);
+  driverSelect.addEventListener('change', e=>renderLaps(e.target.value));
+
+  // 6) 시뮬레이션(애니메이션)
+  // 드라이버 중 8명 랜덤 선발 → 팀 컬러 점으로 트랙 따라 회전
+  const pickN = (arr, n) => arr.sort(()=>Math.random()-0.5).slice(0, n);
+  const roster = pickN(drivers, Math.min(8, drivers.length));
+  const teams = [];
+  const carsG = document.getElementById('cars');
+  const legend = document.getElementById('legend');
+  const path = document.getElementById('circuit');
+  const pathLen = path.getTotalLength();
+
+  roster.forEach((d, i)=>{
+    const color = '#'+(d.team_colour || '999999');
+    // circle element
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('r', 7);
+    c.setAttribute('fill', color);
+    c.setAttribute('stroke', '#000');
+    c.setAttribute('stroke-width', '1.5');
+    c.dataset.offset = String(Math.random() * pathLen);
+    // 기본 속도: 90~130 px/s 범위
+    c.dataset.speed = String(90 + Math.random()*40);
+    c.dataset.boost = '0';
+    c.dataset.num = d.driver_number;
+    carsG.appendChild(c);
+
+    legend.insertAdjacentHTML('beforeend', `
+      <span class="pill"><span class="dot" style="background:${color}"></span>
+      #${d.driver_number} · ${d.full_name}</span>`);
+    teams.push({el:c, color, d});
+  });
+
+  // 간단한 부스트(무작위 가속 이벤트)로 추월 느낌
+  function tick(ts){
+    if (!tick.last) tick.last = ts;
+    const dt = (ts - tick.last) / 1000; // seconds
+    tick.last = ts;
+
+    teams.forEach(t=>{
+      let s = +t.el.dataset.speed;
+      let boost = +t.el.dataset.boost;
+      if (Math.random() < 0.01) { // 1% 확률로 1~2초간 boost
+        boost = 1 + Math.random()*1;
+        t.el.dataset.boost = boost.toFixed(3);
+        setTimeout(()=>{ t.el.dataset.boost = '0'; }, 1000 + Math.random()*1000);
+      }
+      const v = s * (1 + boost*0.35); // 부스트 영향
+      let off = (+t.el.dataset.offset + v*dt) % pathLen;
+      t.el.dataset.offset = String(off);
+      const p = path.getPointAtLength(off);
+      t.el.setAttribute('cx', p.x);
+      t.el.setAttribute('cy', p.y);
+    });
+
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+})();
+</script>
+</body>
+</html>

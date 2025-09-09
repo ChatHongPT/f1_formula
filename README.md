@@ -5,14 +5,13 @@
 **F1 JQ Stats**는 [Ergast Developer API](http://ergast.com/mrd/)로부터 Formula 1 데이터를 가져와
 `jq`로 가공·집계·CSV 저장까지 자동화하는 **Bash 기반 오픈소스 프로젝트**입니다.
 
-- **데이터 수집** : 시즌별 드라이버·컨스트럭터 스탠딩, 경기별 포디움, 랩타임, 피트스톱 정보
-- **데이터 처리** : `jq`를 사용해 JSON 평탄화 후 CSV 변환
-- **자동 디렉토리 구성** : 시즌/라운드별 저장 구조 자동 생성
+- **실시간 데이터 조회** : Ergast API에서 최신 F1 데이터를 실시간으로 조회
+- **데이터 처리** : `jq`를 사용해 JSON을 CSV 형태로 변환하여 터미널에 출력
 - **시각 효과** : 스피너, 프로그레스바, 🏎️💨 레이싱 애니메이션
-- **결과물 활용** : CSV 파일로 저장하여 Python, Excel, Grafana 등에서 분석 가능
+- **결과물 활용** : 터미널 출력을 파이프라인으로 다른 도구와 연동 가능
 - **입력 검증** : 연도, 라운드, 랩 번호 자동 검증 (1950-2030, 1-30, 1-100)
 - **에러 핸들링** : API 응답 검증 및 JSON 파싱 오류 자동 감지
-- **CSV 헤더** : 모든 CSV 파일에 적절한 컬럼 헤더 자동 추가
+- **CSV 헤더** : 출력되는 데이터에 적절한 컬럼 헤더 자동 추가
 
 ## 기술 스택
 
@@ -74,11 +73,19 @@ make report YEAR=2024 ROUND=1 LAP=10
 
 ## 출력
 
-- `data/<YEAR>/csv/driver_standings.csv`
-- `data/<YEAR>/csv/constructor_standings.csv`
-- `data/<YEAR>/csv/podiums.csv`
-- `data/<YEAR>/rounds/<ROUND>/lap<LAP>.csv`
-- `data/<YEAR>/rounds/<ROUND>/pitstops.csv`
+스크립트 실행시 터미널에 CSV 형태로 출력됩니다:
+
+```bash
+# 드라이버 스탠딩
+position,driver,constructor,points,wins
+1,Max Verstappen,Red Bull Racing,575,19
+2,Sergio Perez,Red Bull Racing,285,2
+
+# 포디움 집계
+driver,podiums,P1,P2,P3
+Max Verstappen,19,19,0,0
+Sergio Perez,2,0,2,0
+```
 
 ## 라이선스
 
