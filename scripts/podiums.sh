@@ -5,6 +5,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 check_deps
 YEAR="${1:-${YEAR}}"
+validate_year "$YEAR"
 OUT_RAW="${DATA_DIR}/${YEAR}/raw"
 OUT_CSV="${DATA_DIR}/${YEAR}/csv"
 mkdir -p "${OUT_RAW}" "${OUT_CSV}"
@@ -13,9 +14,11 @@ banner "🥇 ${YEAR} 시즌 포디움 집계 (P1/P2/P3)"
 
 run_with_spinner "전체 결과 다운로드(results.json)" \
   curl -s "${BASE}/${YEAR}/results.json?limit=1000" -o "${OUT_RAW}/results.json"
+check_api_response "${OUT_RAW}/results.json" "경기 결과"
 
 run_with_spinner "포디움 CSV 생성" \
   bash -c "
+    echo 'driver,podiums,P1,P2,P3' > '${OUT_CSV}/podiums.csv'
     jq -r '
       .MRData.RaceTable.Races
       | map(
@@ -34,9 +37,8 @@ run_with_spinner "포디움 CSV 생성" \
           P3: (map(select(.position==3))|length)
         })
       | sort_by(-.podiums, .driver)
-      | ( [\"driver\",\"podiums\",\"P1\",\"P2\",\"P3\"] | @csv ),
-        ( .[] | [ .driver, .podiums, .P1, .P2, .P3 ] | @csv )
-    ' '${OUT_RAW}/results.json' > '${OUT_CSV}/podiums.csv'
+      | .[] | [ .driver, .podiums, .P1, .P2, .P3 ] | @csv
+    ' '${OUT_RAW}/results.json' >> '${OUT_CSV}/podiums.csv'
   "
 
 progress_bar 80 40

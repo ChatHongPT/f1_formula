@@ -8,6 +8,10 @@ YEAR="${1:-${YEAR}}"
 ROUND="${2:-1}"
 LAP="${3:-10}"
 
+validate_year "$YEAR"
+validate_round "$ROUND"
+validate_lap "$LAP"
+
 DIR="${DATA_DIR}/${YEAR}/rounds/${ROUND}"
 mkdir -p "${DIR}"
 
@@ -15,28 +19,31 @@ banner "🏎️  ${YEAR} Round ${ROUND} 리포트 (Lap ${LAP}, Pitstops)"
 
 run_with_spinner "Lap ${LAP} 랩타임 다운로드" \
   curl -s "${BASE}/${YEAR}/${ROUND}/laps/${LAP}.json?limit=1000" -o "${DIR}/lap${LAP}.json"
+check_api_response "${DIR}/lap${LAP}.json" "Lap ${LAP} 랩타임"
 
 run_with_spinner "피트스톱 다운로드" \
   curl -s "${BASE}/${YEAR}/${ROUND}/pitstops.json?limit=1000" -o "${DIR}/pitstops.json"
+check_api_response "${DIR}/pitstops.json" "피트스톱"
 
 run_with_spinner "Lap ${LAP} CSV 생성" \
   bash -c "
+    echo 'position,driverId,time' > '${DIR}/lap${LAP}.csv'
     jq -r '
       .MRData.RaceTable.Races[0].Laps[0].Timings[]
       | {driverId:.driverId, position:(.position|tonumber), time:.time}
       | [ .position, .driverId, .time ] | @csv
-    ' '${DIR}/lap${LAP}.json' > '${DIR}/lap${LAP}.csv'
+    ' '${DIR}/lap${LAP}.json' >> '${DIR}/lap${LAP}.csv'
   "
 
 run_with_spinner "Pitstops CSV 생성" \
   bash -c "
+    echo 'lap,stop,driverId,duration' > '${DIR}/pitstops.csv'
     jq -r '
       .MRData.RaceTable.Races[0].PitStops
       | map({lap:(.lap|tonumber), stop:(.stop|tonumber), driverId:.driverId, duration:.duration})
       | sort_by(.lap, .stop)
-      | ( [\"lap\",\"stop\",\"driverId\",\"duration\"] | @csv ),
-        ( .[] | [ .lap, .stop, .driverId, .duration ] | @csv )
-    ' '${DIR}/pitstops.json' > '${DIR}/pitstops.csv'
+      | .[] | [ .lap, .stop, .driverId, .duration ] | @csv
+    ' '${DIR}/pitstops.json' >> '${DIR}/pitstops.csv'
   "
 
 f1_car_animation 70 1

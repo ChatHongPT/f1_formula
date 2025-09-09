@@ -4,6 +4,7 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 YEAR="${1:-${YEAR}}"
+validate_year "$YEAR"
 
 banner "🚦 Initialize directories for season ${YEAR}"
 run_with_spinner "디렉토리 생성" bash -c "
