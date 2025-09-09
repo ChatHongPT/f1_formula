@@ -27,6 +27,55 @@ check_deps() {
   fi
 }
 
+# 입력 검증 함수들
+validate_year() {
+  local year="$1"
+  if [[ ! "$year" =~ ^[0-9]{4}$ ]] || [[ "$year" -lt 1950 ]] || [[ "$year" -gt 2030 ]]; then
+    echo "❌ 잘못된 연도: $year (1950-2030 사이의 4자리 숫자여야 함)"
+    exit 1
+  fi
+}
+
+validate_round() {
+  local round="$1"
+  if [[ ! "$round" =~ ^[0-9]+$ ]] || [[ "$round" -lt 1 ]] || [[ "$round" -gt 30 ]]; then
+    echo "❌ 잘못된 라운드: $round (1-30 사이의 숫자여야 함)"
+    exit 1
+  fi
+}
+
+validate_lap() {
+  local lap="$1"
+  if [[ ! "$lap" =~ ^[0-9]+$ ]] || [[ "$lap" -lt 1 ]] || [[ "$lap" -gt 100 ]]; then
+    echo "❌ 잘못된 랩: $lap (1-100 사이의 숫자여야 함)"
+    exit 1
+  fi
+}
+
+# API 응답 검증
+check_api_response() {
+  local file="$1"
+  local description="$2"
+  
+  if [[ ! -f "$file" ]] || [[ ! -s "$file" ]]; then
+    echo "❌ $description 다운로드 실패: 파일이 비어있거나 존재하지 않음"
+    exit 1
+  fi
+  
+  # JSON 유효성 검사
+  if ! jq empty "$file" 2>/dev/null; then
+    echo "❌ $description JSON 파싱 실패"
+    exit 1
+  fi
+  
+  # API 에러 응답 확인
+  if jq -e '.MRData == null' "$file" >/dev/null 2>&1; then
+    echo "❌ $description API 에러 응답"
+    jq -r '.error // "알 수 없는 에러"' "$file" 2>/dev/null || echo "API 응답 형식 오류"
+    exit 1
+  fi
+}
+
 # 공용 출력
 banner() {
   local msg="$1"
