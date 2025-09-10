@@ -223,8 +223,7 @@ jq '
 <img width="1440" height="900" alt="스크린샷 2025-09-10 오전 10 04 39" src="https://github.com/user-attachments/assets/2d27f7ee-ddee-4d17-b5d0-aeadf8e817f4" />
 
 ## 웹 실행 영상
-![화면 기록 2025-09-10 오전 9 32 41-2](https://github.com/user-attachments/assets/a5307e18-133a-49fa-8f11-2e9d5893d8df)
-
+![화면 기록 2025-09-10 오전 9 32 41 (2) (1)](https://github.com/user-attachments/assets/2aee28fa-c5e5-49e2-a9cf-36cd8b1fa183)
 
 ## 트러블 슈팅
 
