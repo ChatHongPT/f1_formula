@@ -3,29 +3,403 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>F1 Mini Live · Simulation + Dashboard</title>
+<title>🏎️ F1 Live Dashboard · Real-time Racing Simulation</title>
 <meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root{--ink:#111;--muted:#777;--card:rgba(255,255,255,.08)}
-  @media (prefers-color-scheme:dark){:root{--ink:#eee}}
-  *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;background:#0b0b0d;color:var(--ink)}
-  .layout{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;min-height:100dvh;padding:18px}
-  .card{background:var(--card);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:16px}
-  .title{font-weight:800;margin:0 0 8px 0}
-  .muted{color:var(--muted);font-size:13px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
-  .podium{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .podium .p{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;background:rgba(255,255,255,.06)}
-  .podium img{width:52px;height:52px;border-radius:8px;object-fit:cover}
-  .badge{display:inline-block;padding:4px 10px;border:1px solid #333;border-radius:999px;font-weight:700}
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,.12);text-align:left}
-  select{padding:6px 10px;border-radius:8px;background:transparent;border:1px solid #555;color:inherit}
-  .legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
-  .legend .dot{width:12px;height:12px;border-radius:50%}
-  .sim-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-  .pill{display:inline-flex;gap:6px;align-items:center;border:1px solid #333;border-radius:999px;padding:6px 10px}
+  :root {
+    --ink: #ffffff;
+    --muted: #a0a0a0;
+    --card: rgba(255,255,255,.08);
+    --card-hover: rgba(255,255,255,.12);
+    --accent: #ff1801;
+    --accent-gold: #ffd700;
+    --accent-silver: #c0c0c0;
+    --accent-bronze: #cd7f32;
+    --gradient-primary: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    --gradient-accent: linear-gradient(135deg, #ff1801 0%, #ff6b35 100%);
+    --shadow: 0 8px 32px rgba(0,0,0,0.3);
+    --shadow-hover: 0 12px 48px rgba(0,0,0,0.4);
+  }
+  
+  @media (prefers-color-scheme:dark) {
+    :root { --ink: #ffffff; }
+  }
+  
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--gradient-primary);
+    color: var(--ink);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  
+  /* 애니메이션 배경 */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+      radial-gradient(circle at 20% 20%, rgba(255, 24, 1, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 40% 60%, rgba(255, 215, 0, 0.05) 0%, transparent 50%);
+    z-index: -1;
+    animation: backgroundShift 20s ease-in-out infinite;
+  }
+  
+  @keyframes backgroundShift {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+  }
+  
+  .layout {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+    min-height: 100vh;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  .card {
+    background: var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--gradient-accent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .card:hover {
+    background: var(--card-hover);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+  }
+  
+  .card:hover::before {
+    opacity: 1;
+  }
+  
+  .title {
+    font-weight: 800;
+    font-size: 1.5rem;
+    margin: 0 0 16px 0;
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .muted {
+    color: var(--muted);
+    font-size: 0.875rem;
+    font-weight: 400;
+  }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  
+  .podium {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+    max-height: 120px;
+  }
+  
+  .podium .p {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    min-height: 80px;
+  }
+  
+  .podium .p::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-accent);
+  }
+  
+  .podium .p:nth-child(1)::before { background: var(--accent-gold); }
+  .podium .p:nth-child(2)::before { background: var(--accent-silver); }
+  .podium .p:nth-child(3)::before { background: var(--accent-bronze); }
+  
+  .podium .p:hover {
+    background: rgba(255,255,255,.1);
+    transform: translateY(-2px);
+  }
+  
+  .podium img {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,.2);
+    flex-shrink: 0;
+  }
+  
+  .podium .p > div {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .podium .p > div > div:first-child {
+    font-size: 0.7rem;
+    margin-bottom: 2px;
+    font-weight: 600;
+  }
+  
+  .podium .p > div > div:nth-child(2) {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .podium .p > div > div:last-child {
+    font-size: 0.65rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    background: rgba(255,255,255,.1);
+    backdrop-filter: blur(10px);
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    background: rgba(255,255,255,.02);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  
+  .table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 12px;
+    background: rgba(255,255,255,.02);
+  }
+  
+  .table-container::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .table-container::-webkit-scrollbar-track {
+    background: rgba(255,255,255,.05);
+    border-radius: 3px;
+  }
+  
+  .table-container::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 3px;
+  }
+  
+  .table-container::-webkit-scrollbar-thumb:hover {
+    background: #ff2a15;
+  }
+  
+  th {
+    background: rgba(255,255,255,.08);
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--accent);
+    border-bottom: 2px solid rgba(255,255,255,.1);
+  }
+  
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    transition: background 0.2s ease;
+  }
+  
+  tr:hover td {
+    background: rgba(255,255,255,.05);
+  }
+  
+  select {
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.2);
+    color: inherit;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+  }
+  
+  .legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+  
+  .legend .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(255,255,255,.3);
+  }
+  
+  .sim-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  
+  .pill {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 20px;
+    padding: 8px 16px;
+    background: rgba(255,255,255,.1);
+    backdrop-filter: blur(10px);
+    font-weight: 500;
+  }
+  
+  /* 반응형 디자인 */
+  @media (max-width: 1024px) {
+    .layout {
+      grid-template-columns: 1fr;
+      gap: 16px;
+      padding: 16px;
+    }
+    
+    .podium {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  /* 로딩 애니메이션 */
+  .loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: var(--accent);
+    animation: spin 1s ease-in-out infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  /* 탭 스타일 */
+  .tab-container {
+    width: 100%;
+  }
+  
+  .tab-buttons {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: rgba(255,255,255,.05);
+    border-radius: 12px;
+    padding: 4px;
+  }
+  
+  .tab-button {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+  
+  .tab-button:hover {
+    background: rgba(255,255,255,.1);
+    color: var(--ink);
+  }
+  
+  .tab-button.active {
+    background: var(--gradient-accent);
+    color: white;
+    box-shadow: 0 4px 12px rgba(255, 24, 1, 0.3);
+  }
+  
+  .tab-content {
+    position: relative;
+  }
+  
+  .tab-panel {
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  .tab-panel.active {
+    display: block;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>
 </head>
 <body>
@@ -33,8 +407,14 @@
   <!-- Left: Simulation -->
   <section class="card">
     <div class="sim-header">
-      <h2 class="title">🏎️ 가상 레이스(애니메이션)</h2>
-      <div class="pill"><span id="sessionLabel" class="muted">세션 로딩중…</span></div>
+      <h2 class="title">
+        <img src="/F1-Logo.png" alt="F1 Logo" style="height: 40px; margin-right: 12px;">
+        F1 formula 1
+      </h2>
+      <div class="pill">
+        <span class="loading"></span>
+        <span id="sessionLabel" class="muted">Loading session...</span>
+      </div>
     </div>
     <!-- SVG Track: 오벌 + 코너 2개 느낌 -->
     <svg id="track" viewBox="0 0 800 500" width="100%" height="460" style="background:radial-gradient(900px 380px at -10% -10%, #1c1c20, transparent 60%), radial-gradient(700px 380px at 110% 110%, #141418, transparent 60%)">
@@ -54,29 +434,42 @@
       <g id="cars"></g>
     </svg>
     <div class="legend" id="legend"></div>
-    <div class="muted">좌측 트랙에서 팀 컬러의 원이 자동차입니다. 속도는 난수 + 미니 부스트로 약간씩 달라져 추월 연출이 납니다.</div>
+    <div class="muted">🏁 Colored circles on the track represent F1 cars. Speeds vary with random numbers + mini boosts for realistic overtaking scenarios.</div>
   </section>
 
   <!-- Right: Dashboard -->
   <section class="card">
-    <h2 class="title">📊 대시보드</h2>
+    <h2 class="title">🏁 Race Dashboard</h2>
     <div class="podium" id="podium"></div>
 
-    <div class="grid">
-      <div class="card">
-        <h3 class="title">🏁 팀 순위(세션 포인트)</h3>
-        <table id="teamTable"><thead><tr><th>순위</th><th>팀</th><th>점수</th></tr></thead><tbody></tbody></table>
-      </div>
-      <div class="card">
-        <h3 class="title">🛞 피트스톱(최신순)</h3>
-        <table id="pitTable"><thead><tr><th>Lap</th><th>#</th><th>Driver</th><th>Duration(s)</th></tr></thead><tbody></tbody></table>
-      </div>
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <h3 class="title">⏱️ 드라이버 랩타임</h3>
-          <select id="driverSelect"></select>
+    <div class="card">
+      <div class="tab-container">
+        <div class="tab-buttons">
+          <button class="tab-button active" data-tab="teams">🏆 팀 순위</button>
+          <button class="tab-button" data-tab="pits">⚡ 피트 스탑</button>
+          <button class="tab-button" data-tab="laps">⏱️ 랩 기록</button>
         </div>
-        <table id="lapTable"><thead><tr><th>Lap</th><th>Time(s)</th></tr></thead><tbody></tbody></table>
+        <div class="tab-content">
+          <div id="teams-tab" class="tab-panel active">
+            <div class="table-container">
+              <table id="teamTable"><thead><tr><th>Rank</th><th>Team</th><th>Points</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+          <div id="pits-tab" class="tab-panel">
+            <div class="table-container">
+              <table id="pitTable"><thead><tr><th>Lap</th><th>#</th><th>Driver</th><th>Duration(s)</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+          <div id="laps-tab" class="tab-panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <h4 style="margin:0;font-weight:600">Driver Selection</h4>
+              <select id="driverSelect"></select>
+            </div>
+            <div class="table-container">
+              <table id="lapTable"><thead><tr><th>Lap</th><th>Time(s)</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -85,7 +478,7 @@
 <script>
 (async function(){
   // 1) 데이터 로드(동일 도메인의 정적 파일)
-  const base = '/f1/data';
+  const base = '/f1_data';
   const [meta, drivers, results, pits, laps, teamStandings, podium] = await Promise.all([
     fetch(`${base}/meta.json`).then(r=>r.json()).catch(()=>({})),
     fetch(`${base}/drivers.json`).then(r=>r.json()).catch(()=>[]),
@@ -98,7 +491,33 @@
 
   // 헤더 라벨
   const label = [meta.location, meta.session_name, meta.date_start].filter(Boolean).join(' · ');
-  document.getElementById('sessionLabel').textContent = label || 'Latest Session';
+  const sessionLabel = document.getElementById('sessionLabel');
+  const loadingSpinner = sessionLabel.previousElementSibling;
+  
+  // 로딩 완료 후 스피너 제거
+  if (loadingSpinner && loadingSpinner.classList.contains('loading')) {
+    loadingSpinner.remove();
+  }
+  
+  sessionLabel.textContent = label || 'Latest Session';
+
+  // 탭 기능
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const targetTab = button.getAttribute('data-tab');
+      
+      // 모든 버튼과 패널에서 active 클래스 제거
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabPanels.forEach(panel => panel.classList.remove('active'));
+      
+      // 클릭된 버튼과 해당 패널에 active 클래스 추가
+      button.classList.add('active');
+      document.getElementById(`${targetTab}-tab`).classList.add('active');
+    });
+  });
 
   // small helpers
   const dmap = new Map(drivers.map(d => [String(d.driver_number), d]));
@@ -111,13 +530,15 @@
     const d = dmap.get(String(p.driver_number)) || {};
     const head = (p.headshot_url || d.headshot_url) || 'https://via.placeholder.com/120x120.png?text=No+Photo';
     const color = '#'+(d.team_colour || p.team_colour || '777777');
+    const driverName = p.full_name || d.full_name || d.broadcast_name || `Driver #${p.driver_number}`;
+    const teamName = p.team_name || d.team_name || 'Unknown Team';
     pod.insertAdjacentHTML('beforeend', `
       <div class="p" style="border-left:4px solid ${color}">
-        <img src="${head}" alt="${p.full_name}">
+        <img src="${head}" alt="${driverName}">
         <div>
           <div><strong>${p.position}위</strong> · <span class="badge">#${p.driver_number}</span></div>
-          <div>${p.full_name}</div>
-          <div class="muted">${p.team_name || d.team_name || ''}</div>
+          <div>${driverName}</div>
+          <div class="muted">${teamName}</div>
         </div>
       </div>
     `);
@@ -147,7 +568,8 @@
   drivers.forEach(d=>{
     const opt = document.createElement('option');
     opt.value = d.driver_number;
-    opt.textContent = `${d.full_name} (#${d.driver_number})`;
+    const displayName = d.full_name || d.broadcast_name || `Driver #${d.driver_number}`;
+    opt.textContent = `${displayName} (#${d.driver_number})`;
     driverSelect.appendChild(opt);
   });
   function renderLaps(dn){
@@ -190,9 +612,10 @@
     c.dataset.num = d.driver_number;
     carsG.appendChild(c);
 
+    const displayName = d.full_name || d.broadcast_name || `Driver #${d.driver_number}`;
     legend.insertAdjacentHTML('beforeend', `
       <span class="pill"><span class="dot" style="background:${color}"></span>
-      #${d.driver_number} · ${d.full_name}</span>`);
+      #${d.driver_number} · ${displayName}</span>`);
     teams.push({el:c, color, d});
   });
 
