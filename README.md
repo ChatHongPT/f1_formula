@@ -63,7 +63,7 @@ bash build.sh
 
 ```bash
 # Python HTTP 서버 시작 (포트 8081)
-cd /Users/hongttochi/f1_formula
+cd f1_formula
 python3 -m http.server 8081
 ```
 
