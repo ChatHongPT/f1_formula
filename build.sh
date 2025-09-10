@@ -1,91 +1,87 @@
-sudo apt update
-sudo apt install -y nginx jq curl
-sudo mkdir -p /f1 /var/www/html/f1/data
-
-sudo tee /f1/build.sh >/dev/null <<'EOF'
+sudo tee ./f1_build.sh >/dev/null <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
 API="https://api.openf1.org/v1"
-OUT="/var/www/html/f1/data"
+OUT="./f1_data"
 mkdir -p "$OUT"
 
-# 1) 최신 세션 키 찾기 (drivers에서 하나 집어와도 충분)
-drivers_json="$(curl -sS "$API/drivers?session_key=latest")"
-len="$(echo "$drivers_json" | jq 'length')"
-if [ "$len" -eq 0 ]; then
+curl_json() { curl -fsSL "$1" || echo '[]'; }
+
+# 1) 최신 세션 기준 데이터 수집 → 파일 저장
+drivers_json="$(curl_json "$API/drivers?session_key=latest")"
+if [ "$(jq 'length' <<<"$drivers_json")" -eq 0 ]; then
   echo "no drivers for latest session" >&2
   exit 1
 fi
-session_key="$(echo "$drivers_json" | jq -r '.[0].session_key')"
+session_key="$(jq -r '.[0].session_key' <<<"$drivers_json")"
 
-# 2) 세션/드라이버/랩/피트/결과 수집
-sessions_json="$(curl -sS "$API/sessions?session_key=${session_key}")" || sessions_json="[]"
-laps_json="$(curl -sS "$API/laps?session_key=${session_key}")" || laps_json="[]"
-pits_json="$(curl -sS "$API/pit?session_key=${session_key}")" || pits_json="[]"
-results_json="$(curl -sS "$API/session_result?session_key=${session_key}")" || results_json="[]"
+printf '%s' "$drivers_json" | jq '.' > "$OUT/drivers.json"
+printf '%s' "$(curl_json "$API/sessions?session_key=$session_key")" | jq '.' > "$OUT/sessions.json"
+printf '%s' "$(curl_json "$API/laps?session_key=$session_key")" | jq '.' > "$OUT/laps.json"
+printf '%s' "$(curl_json "$API/pit?session_key=$session_key")" | jq '.' > "$OUT/pits.json"
+printf '%s' "$(curl_json "$API/session_result?session_key=$session_key")" | jq '.' > "$OUT/results.json"
 
-# 3) 파일로 저장
-echo "$drivers_json"  > "$OUT/drivers.json"
-echo "$sessions_json" > "$OUT/sessions.json"
-echo "$laps_json"     > "$OUT/laps.json"
-echo "$pits_json"     > "$OUT/pits.json"
-echo "$results_json"  > "$OUT/results.json"
+# 2) 팀 순위(세션 포인트 합산) - drivers와 조인
+jq -s '
+  .[0] as $results |
+  .[1] as $drivers |
+  $results |
+  map(
+    . as $r |
+    ($drivers[] | select(.driver_number == $r.driver_number)) as $d |
+    . + {team_name: ($d.team_name // "Unknown Team")}
+  ) |
+  group_by(.team_name) |
+  map({team_name:(.[0].team_name // "Unknown Team"),
+       points:(map(.points // 0) | add)}) |
+  sort_by(-.points)
+' "$OUT/results.json" "$OUT/drivers.json" | jq '.' > "$OUT/team_standings.json"
 
-# 4) 팀 순위(세션 포인트 합산) 계산
-# results: [{full_name, team_name, position, points, ...}]
-team_table="$(echo "$results_json" \
-  | jq -r '
-      group_by(.team_name) |
-      map({
-        team_name: (.[0].team_name // "Unknown Team"),
-        points: (map(.points // 0) | add)
-      }) | sort_by(-.points)
-    ')"
-echo "$team_table" > "$OUT/team_standings.json"
+# 3) 포디움(Top 3) + headshot/team_colour 조인  (파일에서 직접 읽음)
+#   results가 비면 drivers 상위 3명으로 대체
+if [ "$(jq 'length' "$OUT/results.json")" -gt 0 ]; then
+  jq -s '
+    .[0] as $results |
+    .[1] as $drivers |
+    ($results | map(select(.position != null)) | sort_by(.position) | .[0:3]) as $top |
+    $top |
+    map(
+      . as $r |
+      ($drivers[] | select(.driver_number == $r.driver_number)) as $d |
+      . + {
+        headshot_url: ($d.headshot_url // null),
+        team_colour: ($d.team_colour // "777777")
+      }
+    )
+  ' "$OUT/results.json" "$OUT/drivers.json" | jq '.' > "$OUT/podium.json"
+else
+  jq '
+    sort_by(.driver_number) | .[0:3] |
+    to_entries |
+    map({
+      position: (.key + 1),
+      driver_number: .value.driver_number,
+      full_name: .value.full_name,
+      team_name: (.value.team_name // "Unknown Team"),
+      headshot_url: (.value.headshot_url // null),
+      team_colour: (.value.team_colour // "777777")
+    })
+  ' "$OUT/drivers.json" | jq '.' > "$OUT/podium.json"
+fi
 
-# 5) 포디움(Top 3) 추출 + headshot 채우기(드라이버 목록 조인)
-podium="$(jq -n --argjson R "$results_json" --argjson D "$drivers_json" '
-  # 결과에서 상위 3명만
-  ($R | sort_by(.position) | map(select(.position >= 1)) | .[0:3]) as $top |
-  $top
-  | map(. + (
-      # 드라이버 목록과 driver_number로 조인해 headshot/team_colour 얻기
-      ($D | map(select(.driver_number == .driver_number)) |
-       map(select(.driver_number == .driver_number))) as $noop
-    ))
-')"
-# 위 조인은 noop이라 의미 없음 → 제대로 조인
-podium="$(jq -n --argjson R "$results_json" --argjson D "$drivers_json" '
-  ($R | sort_by(.position) | .[0:3]) as $top
-  | $top
-  | map(. + (
-      ($D | map(select(.driver_number == .driver_number))) as $no  # placeholder
-    ))
-')"
-# 실제 조인 구현
-podium="$(jq -n --argjson R "$results_json" --argjson D "$drivers_json" '
-  ($R | sort_by(.position) | .[0:3]) as $top
-  | $top
-  | map(. as $r |
-        ($D | map(select(.driver_number == $r.driver_number)) | .[0]) as $d |
-        . + {
-          headshot_url: ($d.headshot_url // null),
-          team_colour:  ($d.team_colour  // "777777")
-        })
-')"
-echo "$podium" > "$OUT/podium.json"
-
-# 6) 메타
-jq -n --arg sk "$session_key" \
-      --arg loc "$(echo "$sessions_json" | jq -r '.[0].location // empty')" \
-      --arg name "$(echo "$sessions_json" | jq -r '.[0].session_name // "Latest Session"')" \
-      --arg date "$(echo "$sessions_json" | jq -r '.[0].date_start // empty')" \
-      '{session_key:$sk, location:$loc, session_name:$name, date_start:$date}' \
-      > "$OUT/meta.json"
+# 4) 메타
+jq -n \
+  --arg sk "$(printf '%s' "$session_key")" \
+  --arg loc  "$(jq -r '.[0].location     // empty' "$OUT/sessions.json")" \
+  --arg name "$(jq -r '.[0].session_name // "Latest Session"' "$OUT/sessions.json")" \
+  --arg date "$(jq -r '.[0].date_start   // empty' "$OUT/sessions.json")" \
+  '{session_key:$sk, location:$loc, session_name:$name, date_start:$date}' | jq '.' \
+  > "$OUT/meta.json"
 
 echo "Generated JSON under $OUT"
 EOF
 
-sudo chmod +x /f1/build.sh
-sudo /f1/build.sh
+# 개행문자 정리(혹시 Windows 개행 섞였을 경우)
+sudo sed -i '' 's/\r$//' ./f1_build.sh
+sudo chmod +x ./f1_build.sh
