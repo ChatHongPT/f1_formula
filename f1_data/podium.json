@@ -1,0 +1,47 @@
+[
+  {
+    "position": 1,
+    "driver_number": 1,
+    "number_of_laps": 53,
+    "points": 25.0,
+    "dnf": false,
+    "dns": false,
+    "dsq": false,
+    "duration": 4404.325,
+    "gap_to_leader": 0,
+    "meeting_key": 1268,
+    "session_key": 9912,
+    "headshot_url": "https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/M/MAXVER01_Max_Verstappen/maxver01.png.transform/1col/image.png",
+    "team_colour": "4781D7"
+  },
+  {
+    "position": 2,
+    "driver_number": 4,
+    "number_of_laps": 53,
+    "points": 18.0,
+    "dnf": false,
+    "dns": false,
+    "dsq": false,
+    "gap_to_leader": 19.207,
+    "duration": 4423.532,
+    "meeting_key": 1268,
+    "session_key": 9912,
+    "headshot_url": "https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/L/LANNOR01_Lando_Norris/lannor01.png.transform/1col/image.png",
+    "team_colour": "F47600"
+  },
+  {
+    "position": 3,
+    "driver_number": 81,
+    "number_of_laps": 53,
+    "points": 15.0,
+    "dnf": false,
+    "dns": false,
+    "dsq": false,
+    "gap_to_leader": 21.351,
+    "duration": 4425.676,
+    "meeting_key": 1268,
+    "session_key": 9912,
+    "headshot_url": "https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/O/OSCPIA01_Oscar_Piastri/oscpia01.png.transform/1col/image.png",
+    "team_colour": "F47600"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "team_name": "McLaren",
+    "points": 33
+  },
+  {
+    "team_name": "Red Bull Racing",
+    "points": 25
+  },
+  {
+    "team_name": "Ferrari",
+    "points": 20
+  },
+  {
+    "team_name": "Mercedes",
+    "points": 12
+  },
+  {
+    "team_name": "Williams",
+    "points": 6
+  },
+  {
+    "team_name": "Kick Sauber",
+    "points": 4
+  },
+  {
+    "team_name": "Racing Bulls",
+    "points": 1
+  },
+  {
+    "team_name": "Alpine",
+    "points": 0
+  },
+  {
+    "team_name": "Aston Martin",
+    "points": 0
+  },
+  {
+    "team_name": "Haas F1 Team",
+    "points": 0
+  }
+]
