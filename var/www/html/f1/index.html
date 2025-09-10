@@ -434,7 +434,6 @@
       <g id="cars"></g>
     </svg>
     <div class="legend" id="legend"></div>
-    <div class="muted">🏁 Colored circles on the track represent F1 cars. Speeds vary with random numbers + mini boosts for realistic overtaking scenarios.</div>
   </section>
 
   <!-- Right: Dashboard -->
@@ -475,6 +474,12 @@
   </section>
 </div>
 
+<!-- 배경음악 -->
+<audio id="bgMusic" loop autoplay>
+  <source src="/f1.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+
 <script>
 (async function(){
   // 1) 데이터 로드(동일 도메인의 정적 파일)
@@ -500,6 +505,22 @@
   }
   
   sessionLabel.textContent = label || 'Latest Session';
+
+  // 배경음악 제어
+  const bgMusic = document.getElementById('bgMusic');
+  let isMusicPlaying = false;
+  
+  // 사용자 상호작용 후 음악 재생 (브라우저 정책)
+  document.addEventListener('click', () => {
+    if (!isMusicPlaying) {
+      bgMusic.play().then(() => {
+        isMusicPlaying = true;
+        console.log('🎵 F1 배경음악이 시작되었습니다!');
+      }).catch(err => {
+        console.log('음악 재생 실패:', err);
+      });
+    }
+  });
 
   // 탭 기능
   const tabButtons = document.querySelectorAll('.tab-button');
